@@ -8,6 +8,42 @@ Official code and results for our AutoML-Conf 2022 submission, based on [NASLib]
 
 
 
+---
+## Brief paper overview
+
+### The best predictors
+
+First, we evaluate various common prediction methods on diverse combinations of architectures, metrics, and devices.
+
+On [HW-NAS-Bench](https://github.com/RICE-EIC/HW-NAS-Bench):
+
+<img src="images/res_pred1.png">
+
+and [TransNAS-Bench-101](https://github.com/yawen-d/TransNASBench):
+
+<img src="images/res_pred2.png">
+
+
+### But how do such predictions affect architecture selection?
+
+Secondly, to find out what different Kendall's Tau values mean for the subsequent multi-objective architecture selection, we extensively simulated the selection (right) under incorrect information (left, showing a trained XGB predictor).
+
+<img src="images/xgb_hist.png" width="251" height="200">
+<img src="images/sim_select.png" width="246" height="200">
+
+Predictors of lower quality (correlation) lead us to selecting worse candidates, measured by a mean reduction in accuracy:
+
+<img src="images/sim_acc.png" width="373" height="250">
+
+and a reduction in hypervolume:
+
+<img src="images/sim_hv.png" width="393" height="250">
+
+
+**For details, have a look at our paper!**
+
+
+---
 ## Running the code
 
 ### Preliminary
@@ -72,6 +108,7 @@ The functionality to simulate and generate plots is available by
 
 
 
+---
 ## Cite
 
 If you use this code in your own work, please use the following bibtex entries:

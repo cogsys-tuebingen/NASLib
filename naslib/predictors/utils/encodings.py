@@ -4,6 +4,7 @@ import logging
 from naslib.predictors.utils.encodings_nb101 import encode_101
 from naslib.predictors.utils.encodings_darts import encode_darts
 from naslib.predictors.utils.encodings_nlp import encode_nlp
+from naslib.predictors.utils.encodings_transnas import encode_transnas_inf
 
 """
 Currently we need search space specific methods.
@@ -23,12 +24,12 @@ one_hot_nasbench201 = [
     [0, 0, 0, 0, 1],
 ]
 
+
 OPS = ["avg_pool_3x3", "nor_conv_1x1", "nor_conv_3x3", "none", "skip_connect"]
 NUM_OPS = len(OPS)
 
 
 def encode_adjacency_one_hot(arch):
-
     encoding = arch.get_op_indices()
     one_hot = []
     for e in encoding:
@@ -229,6 +230,10 @@ def encode(arch, encoding_type="adjacency_one_hot", ss_type=None):
         return encode_101(arch, encoding_type=encoding_type)
     elif ss_type == "nasbench201":
         return encode_201(arch, encoding_type=encoding_type)
+    elif ss_type == "hwnas":
+        return encode_201(arch, encoding_type=encoding_type)
+    elif ss_type == "transnas_inf":
+        return encode_transnas_inf(arch, encoding_type=encoding_type)
     elif ss_type == "darts":
         return encode_darts(arch, encoding_type=encoding_type)
     elif ss_type == "nlp":

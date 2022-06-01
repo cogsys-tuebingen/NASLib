@@ -22,3 +22,5 @@ class Metric(Enum):
     PARAMETERS = auto()
     EPOCH = auto()
     HP = auto()
+
+    HW = auto()

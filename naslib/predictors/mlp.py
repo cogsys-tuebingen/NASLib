@@ -75,6 +75,7 @@ class MLPPredictor(Predictor):
         self.default_hyperparams = {
             "num_layers": 20,
             "layer_width": 20,
+            "activation": "relu",
             "batch_size": 32,
             "lr": 0.001,
             "regularization": 0.2,
@@ -92,6 +93,7 @@ class MLPPredictor(Predictor):
 
         num_layers = self.hyperparams["num_layers"]
         layer_width = self.hyperparams["layer_width"]
+        activation = self.hyperparams["activation"]
         batch_size = self.hyperparams["batch_size"]
         lr = self.hyperparams["lr"]
         regularization = self.hyperparams["regularization"]
@@ -124,6 +126,7 @@ class MLPPredictor(Predictor):
             input_dims=_xtrain.shape[1],
             num_layers=num_layers,
             layer_width=num_layers * [layer_width],
+            activation=activation,
         )
         self.model.to(device)
         optimizer = optim.Adam(self.model.parameters(), lr=lr, betas=(0.9, 0.99))
@@ -203,6 +206,7 @@ class MLPPredictor(Predictor):
             params = {
                 "num_layers": int(np.random.choice(range(5, 25))),
                 "layer_width": int(np.random.choice(range(5, 25))),
+                "activation": "relu",
                 "batch_size": 32,
                 "lr": np.random.choice([0.1, 0.01, 0.005, 0.001, 0.0001]),
                 "regularization": 0.2,

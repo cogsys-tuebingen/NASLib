@@ -1,5 +1,7 @@
 import os
 import pickle
+import pandas as pd
+import numpy as np
 
 from naslib.utils.utils import get_project_root
 
@@ -52,6 +54,32 @@ def get_nasbench201_api(dataset=None):
             data = pickle.load(f)
 
     return {"nb201_data": data}
+
+
+def get_csv_api(dataset=None, normalize=True, file="hwnas.csv"):
+    """
+    Load the data from a csv lookup (only contains architectures and hardware metric data)
+    normalize to have comparable predictor mean/std statistics, across datasets
+    """
+    df = pd.read_csv(os.path.join(get_project_root(), "data", file))
+    df = df[df[df.columns[0]] == dataset]
+    data = df.to_dict()
+    del data[df.columns[0]]
+    arcs = []
+    values = []
+    for k, v in data.items():
+        assert len(v) == 1
+        for v2 in v.values():
+            assert v2 > 0, "the %s dataset is incomplete, contains negative/nan values" % dataset
+            arcs.append(eval(k))
+            values.append(v2)
+            break
+    return_dict = {"raw": {k: v for k, v in zip(arcs, values)}}
+    if normalize:
+        mean, std = np.mean(values), np.std(values)
+        values = (np.array(values) - mean) / std
+    return_dict["normalized"] = {k: v for k, v in zip(arcs, values)}
+    return return_dict
 
 
 def get_darts_api(dataset=None, 
@@ -110,7 +138,13 @@ def get_nlp_api(dataset=None,
 
 def get_dataset_api(search_space=None, dataset=None):
 
-    if search_space == "nasbench101":
+    if search_space == "hwnas":
+        return get_csv_api(dataset=dataset, file="hwnas.csv")
+
+    elif search_space == "transnas_inf":
+        return get_csv_api(dataset=dataset, file="transnas_inf.csv")
+
+    elif search_space == "nasbench101":
         return get_nasbench101_api(dataset=dataset)
 
     elif search_space == "nasbench201":

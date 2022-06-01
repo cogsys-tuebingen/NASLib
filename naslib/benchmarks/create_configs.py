@@ -63,6 +63,12 @@ def main(args):
         elif args.search_space == "nasbench201":
             total_epochs = 200 - 1
             max_train_size = 1000
+        elif args.search_space == "hwnas":
+            total_epochs = 10  # actually 0, but that causes issues
+            max_train_size = 15000
+        elif args.search_space == "transnas_inf":
+            total_epochs = 10  # actually 0, but that causes issues
+            max_train_size = 3000
         elif args.search_space == "darts":
             total_epochs = 96 - 1
             max_train_size = 500

@@ -55,6 +55,7 @@ class DirectedGraphConvolution(nn.Module):
         nn.init.xavier_uniform_(self.weight2.data)
 
     def forward(self, inputs, adj):
+        adj = adj.to(inputs.dtype)
         norm_adj = normalize_adj(adj)
         output1 = F.relu(torch.matmul(norm_adj, torch.matmul(inputs, self.weight1)))
         inv_norm_adj = normalize_adj(adj.transpose(1, 2))
@@ -130,14 +131,16 @@ class GCNPredictor(Predictor):
     def get_model(self, **kwargs):
         if self.ss_type == "nasbench101":
             initial_hidden = 5
-        elif self.ss_type == "nasbench201":
+        elif self.ss_type in ["nasbench201", "hwnas"]:
             initial_hidden = 7
         elif self.ss_type == "darts":
             initial_hidden = 9
+        elif self.ss_type == "transnas_inf":
+            initial_hidden = 8
         elif self.ss_type == "nlp":
             initial_hidden = 8
         else:
-            raise NotImplementedError()
+            raise NotImplementedError("%s not implemented" % self.ss_type)
 
         predictor = NeuralPredictorModel(initial_hidden=initial_hidden)
         return predictor

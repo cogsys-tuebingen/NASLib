@@ -9,6 +9,7 @@ from .lce import LCEPredictor
 from .lce_m import LCEMPredictor
 from .lcsvr import SVR_Estimator
 from .mlp import MLPPredictor
+from .mlp_mini import MiniMLPPredictor
 from .oneshot import OneShotPredictor
 from .seminas import SemiNASPredictor
 from .soloss import SoLosspredictor
@@ -17,3 +18,5 @@ from .zerocost_v1 import ZeroCostV1
 from .zerocost_v2 import ZeroCostV2
 from .omni_ngb import OmniNGBPredictor
 from .omni_seminas import OmniSemiNASPredictor
+from .lin_reg import LinearRegression, RidgeRegression, LassoRegression
+from .svm import SupportVectorMachineRegression

@@ -9,11 +9,18 @@ import torch
 from scipy import stats
 from sklearn import metrics
 import math
+import matplotlib.pyplot as plt
 
 from naslib.search_spaces.core.query_metrics import Metric
 from naslib.utils import generate_kfold, cross_validation
 
 logger = logging.getLogger(__name__)
+
+# just for some plotting
+save_plots_dir = None
+plot_counter = 0
+# save_plots_dir = "/data/workspace/naslib/hw_predictors/_plots/err/"
+print_data_dict = False
 
 
 class PredictorEvaluator(object):
@@ -69,6 +76,9 @@ class PredictorEvaluator(object):
         elif self.search_space.get_type() == "nlp":
             self.full_lc = True
             self.hyperparameters = True
+        elif self.search_space.get_type() in ["hwnas", "transnas_inf"]:
+            self.full_lc = False
+            self.hyperparameters = True
         else:
             raise NotImplementedError(
                 "This search space is not yet implemented in PredictorEvaluator."
@@ -81,7 +91,8 @@ class PredictorEvaluator(object):
         """
         info_dict = {}
         accuracy = arch.query(
-            metric=self.metric, dataset=self.dataset, dataset_api=self.dataset_api
+            # substituting acc with hardware metrics
+            metric=Metric.HW, dataset=self.dataset, dataset_api=self.dataset_api
         )
         train_time = arch.query(
             metric=Metric.TRAIN_TIME, dataset=self.dataset, dataset_api=self.dataset_api
@@ -118,7 +129,7 @@ class PredictorEvaluator(object):
                     )[hp]
         return accuracy, train_time, info_dict
 
-    def load_dataset(self, load_labeled=False, data_size=10, arch_hash_map={}):
+    def load_dataset(self, load_labeled=False, data_size=10, arch_hash_map=None):
         """
         There are two ways to load an architecture.
         load_labeled=False: sample a random architecture from the search space.
@@ -134,6 +145,8 @@ class PredictorEvaluator(object):
         ydata = []
         info = []
         train_times = []
+        arch_hash_map = arch_hash_map if isinstance(arch_hash_map, dict) else {}
+
         while len(xdata) < data_size:
             if not load_labeled:
                 arch = self.search_space.clone()
@@ -156,7 +169,7 @@ class PredictorEvaluator(object):
 
         return [xdata, ydata, info, train_times], arch_hash_map
 
-    def load_mutated_test(self, data_size=10, arch_hash_map={}):
+    def load_mutated_test(self, data_size=10, arch_hash_map=None):
         """
         Load a test set not uniformly at random, but by picking some random
         architectures and then mutation the best ones. This better emulates
@@ -169,6 +182,7 @@ class PredictorEvaluator(object):
         ydata = []
         info = []
         train_times = []
+        arch_hash_map = arch_hash_map if isinstance(arch_hash_map, dict) else {}
 
         # step 1: create a large pool of architectures
         while len(xdata) < self.mutate_pool:
@@ -215,7 +229,7 @@ class PredictorEvaluator(object):
 
         return [xdata, ydata, info, train_times], arch_hash_map
 
-    def load_mutated_train(self, data_size=10, arch_hash_map={}, test_data=[]):
+    def load_mutated_train(self, data_size=10, arch_hash_map=None, test_data=[]):
         """
         Load a training set not uniformly at random, but by picking architectures
         from the test set and mutating the best ones. There is still no overlap
@@ -229,6 +243,7 @@ class PredictorEvaluator(object):
         ydata = []
         info = []
         train_times = []
+        arch_hash_map = arch_hash_map if isinstance(arch_hash_map, dict) else {}
 
         while len(xdata) < data_size:
             idx = np.random.choice(len(test_data[0]))
@@ -308,6 +323,8 @@ class PredictorEvaluator(object):
 
         logger.info("Compute evaluation metrics")
         results_dict = self.compare(ytest, test_pred)
+        if print_data_dict:
+            print({t.get_op_indices(): (r, p) for t, r, p in zip(test_data[0], test_data[1], test_pred)})
         results_dict["train_size"] = train_size
         results_dict["fidelity"] = fidelity
         results_dict["train_time"] = np.sum(train_times)
@@ -328,7 +345,10 @@ class PredictorEvaluator(object):
         for key in results_dict:
             if type(results_dict[key]) not in [str, set, bool]:
                 # todo: serialize other types
-                print_string += key + ": {}, ".format(np.round(results_dict[key], 4))
+                try:
+                    print_string += key + ": {}, ".format(np.round(results_dict[key], 4))
+                except:
+                    pass
         logger.info(print_string)
         self.results.append(results_dict)
         """
@@ -431,9 +451,33 @@ class PredictorEvaluator(object):
             metrics_dict["rmse"] = metrics.mean_squared_error(
                 ytest, test_pred, squared=False
             )
-            metrics_dict["pearson"] = np.abs(np.corrcoef(ytest, test_pred)[1, 0])
-            metrics_dict["spearman"] = stats.spearmanr(ytest, test_pred)[0]
-            metrics_dict["kendalltau"] = stats.kendalltau(ytest, test_pred)[0]
+
+            # std of errors
+            diff = (test_pred - ytest)
+            metrics_dict["diff_mean"] = np.mean(diff)
+            metrics_dict["diff_std"] = np.std(diff)
+
+            # how are the differences distributed? which density function fits best? based on 100 samples
+            diff100 = diff[:100]
+            for (name, fit_fun) in [
+                ("norm", stats.norm),
+                ("cauchy", stats.cauchy),
+                ("lognorm", stats.lognorm),
+                ("t", stats.t),
+                ("uniform", stats.uniform),
+            ]:
+                args = fit_fun.fit(diff100)
+                tt_stat, tt_p = stats.ttest_ind(diff100, fit_fun.pdf(diff100, *args))
+                metrics_dict["test_tt:%s:stats" % name] = (tt_stat, tt_p)
+                metrics_dict["test_tt:%s:args" % name] = args
+
+            # correlations
+            corr_p = np.abs(np.corrcoef(ytest, test_pred)[1, 0])
+            corr_s = stats.spearmanr(ytest, test_pred)[0]
+            corr_k = stats.kendalltau(ytest, test_pred)[0]
+            metrics_dict["pearson"] = corr_p
+            metrics_dict["spearman"] = corr_s
+            metrics_dict["kendalltau"] = corr_k
             metrics_dict["kt_2dec"] = stats.kendalltau(
                 ytest, np.round(test_pred, decimals=2)
             )[0]
@@ -453,6 +497,40 @@ class PredictorEvaluator(object):
                 metrics_dict["precision_{}".format(k)] = (
                     sum(top_ytest & top_test_pred) / k
                 )
+
+            # optional plots
+            global save_plots_dir, plot_counter
+            if isinstance(save_plots_dir, str):
+                # plotting ytest / test_pred
+                plt.close('all')
+                plt.figure(figsize=(4, 3.5))
+                plt.scatter(ytest, test_pred, label="KT=%.2f, SCC=%.2f, PCC=%.2f" % (corr_k, corr_s, corr_p), s=15)
+                min_, max_ = np.min(ytest), np.max(ytest)
+                plt.plot([min_, max_], [min_, max_], "r-")
+                plt.xlabel("true values")
+                plt.ylabel("predicted values")
+                plt.title("Predictions and targets")
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig('%s/%d_err_pred.pdf' % (save_plots_dir, plot_counter))
+
+                # plotting differences as histogram
+                plt.close('all')
+                plt.figure(figsize=(4, 3.5))
+                plt.hist(diff, bins=50, density=True, label="deviations")
+                x_min, x_max = plt.xlim()
+                x = np.linspace(x_min, x_max, 500)
+                args = stats.norm.fit(diff)
+                plt.plot(x, stats.norm.pdf(x, *args), label="normal fit, std=%.3f" % metrics_dict["diff_std"])
+                plt.axvline(x=0, color='red', linestyle='-')
+                plt.legend()
+                plt.xlabel("deviation of the predictions")
+                plt.ylabel("density")
+                plt.title("Predictor deviations")
+                plt.tight_layout()
+                plt.savefig('%s/%d_err_dist.pdf' % (save_plots_dir, plot_counter))
+                plot_counter += 1
+
         except:
             for metric in METRICS:
                 metrics_dict[metric] = float("nan")

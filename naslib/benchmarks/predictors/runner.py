@@ -31,6 +31,11 @@ from naslib.predictors import (
     ZeroCostV1,
     ZeroCostV2,
     GPWLPredictor,
+    LinearRegression,
+    RidgeRegression,
+    LassoRegression,
+    MiniMLPPredictor,
+    SupportVectorMachineRegression,
 )
 
 from naslib.search_spaces.core.query_metrics import Metric
@@ -39,6 +44,8 @@ from naslib.search_spaces import (
     NasBench201SearchSpace,
     DartsSearchSpace,
     NasBenchNLPSearchSpace,
+    HWNasSearchSpace,
+    LazyTransNASLookupSearchSpace,
 )
 
 from naslib.utils import utils, setup_logger, get_dataset_api
@@ -76,6 +83,7 @@ supported_predictors = {
     ),
     "lgb": LGBoost(encoding_type="adjacency_one_hot", hpo_wrapper=False),
     "mlp": MLPPredictor(encoding_type="adjacency_one_hot", hpo_wrapper=True),
+    "minimlp": MiniMLPPredictor(encoding_type="adjacency_one_hot", hpo_wrapper=True),
     "nao": SemiNASPredictor(encoding_type="seminas", semi=False, hpo_wrapper=False),
     "ngb": NGBoost(encoding_type="adjacency_one_hot", hpo_wrapper=False),
     "rf": RandomForestPredictor(encoding_type="adjacency_one_hot", hpo_wrapper=False),
@@ -136,9 +144,15 @@ supported_predictors = {
     "omni_ngb_no_encoding": OmniNGBPredictor(
         encoding_type=None, config=config, zero_cost=["jacov"], lce=["sotle"]
     ),
+    "lin_reg": LinearRegression(encoding_type="adjacency_one_hot", hpo_wrapper=False),
+    "ridge_reg": RidgeRegression(encoding_type="adjacency_one_hot", hpo_wrapper=True),
+    "lasso_reg": LassoRegression(encoding_type="adjacency_one_hot", hpo_wrapper=True),
+    "svmr": SupportVectorMachineRegression(encoding_type="adjacency_one_hot", hpo_wrapper=True),
 }
 
 supported_search_spaces = {
+    "transnas_inf": LazyTransNASLookupSearchSpace(),
+    "hwnas": HWNasSearchSpace(),
     "nasbench101": NasBench101SearchSpace(),
     "nasbench201": NasBench201SearchSpace(),
     "darts": DartsSearchSpace(),

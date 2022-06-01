@@ -588,11 +588,17 @@ class SemiNASPredictor(Predictor):
             decoder_length = 27
             vocab_size = 7
 
-        elif self.ss_type == "nasbench201":
+        elif self.ss_type in ["nasbench201", "hwnas"]:
             self.max_n = 8
             encoder_length = 35
             decoder_length = 35
             vocab_size = 9
+
+        elif self.ss_type == "transnas_inf":
+            self.max_n = 2          # sequential anyway, no need for complex adjacency matrices
+            encoder_length = -1     # unused
+            decoder_length = 120
+            vocab_size = 11
 
         elif self.ss_type == "darts":
             self.max_n = 35
